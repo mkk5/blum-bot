@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "blum-bot"
+version = "0.1.0"
+description = "Blum clicker"
+authors = ["Denys Vasylyshyn <denys.mkk@gmail.com>"]
+repository = "https://github.com/mkk5/blum-bot"
+readme = "README.md"
+license = "MIT"
+package-mode = false
+
+
+[tool.poetry.dependencies]
+python = "^3.12"
+opencv-python = "^4.10.0.84"
+dxcam = "^0.0.5"
+pynput = "^1.7.7"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
