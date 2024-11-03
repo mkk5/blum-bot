@@ -3,7 +3,7 @@ import numpy as np
 import dxcam
 from pynput.mouse import Button, Controller, Events
 import time
-from typing import Generator
+from typing import Generator, Sequence
 
 
 type Point = tuple[int, int]
@@ -13,6 +13,7 @@ type HSVRange = tuple[HSVValue, HSVValue]
 
 
 def locate(img: np.ndarray, template: np.ndarray, min_match: float, offset: Point = (0,0)) -> Box | None:
+    """Locate template box on image. If minimal similarity is lower than min_match return None."""
     result = cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED)
     _, max_val, _, max_loc = cv2.minMaxLoc(result)
     if max_val < min_match:
@@ -41,34 +42,35 @@ def click(mouse: Controller, point: Point, offset: Point = (0,0)):
     mouse.release(Button.left)
 
 
-def find_objects(hsv_img: np.ndarray, hsv_range: HSVRange, min_area: int) -> Generator[Point, None, None]:
-    """Find objects by color using HSV color mask, don't include contours smaller than min_area."""
+def find_objects(hsv_img: np.ndarray, hsv_range: HSVRange) -> Sequence[np.ndarray]:
+    """Find objects by color using HSV color mask, return contour should be additionally filtered by area."""
     lower_hsv = np.array(hsv_range[0])
     upper_hsv = np.array(hsv_range[1])
     mask = cv2.inRange(hsv_img, lower_hsv, upper_hsv)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    for contour in contours:
-        m = cv2.moments(contour)
-        if m['m00'] > min_area:
-            x_center = int(m['m10']/m['m00'])
-            y_center = int(m['m01']/m['m00'])
-            yield x_center, y_center
+    return contours
+
+
+def centers_by_area(contour: np.ndarray, min_area: int) -> Generator[Point, None, None]:
+    """Filter contour by min_area and return contour center point."""
+    m = cv2.moments(contour)
+    if m['m00'] > min_area:
+        x_center = int(m['m10'] / m['m00'])
+        y_center = int(m['m01'] / m['m00'])
+        yield x_center, y_center
 
 
 POINTS_RANGE: HSVRange = ((10, 140, 140), (15, 255, 255)) # Orange (pumpkin), area 330
-ICE_RANGE: HSVRange = ((85, 55, 140), (105, 255, 255)) # Blue (ice), area 200
-BOMB_RANGE: HSVRange = ((0, 0, 105), (180, 20, 215)) # Gray (bomb), area 200
+ICE_RANGE: HSVRange = ((85, 55, 140), (105, 255, 255)) # Blue (ice), area 190
+BOMB_RANGE: HSVRange = ((0, 0, 105), (180, 20, 215)) # Gray (bomb), area 190
 
-def process_image(img: np.ndarray, mouse: Controller, offset: Point):
-    # TODO: rewrite find_objects to return contours
-    # TODO: here check contours area, check bomb overlap and calculate points to click, return points to main, main should handle clicks instead
+def process_image(img: np.ndarray) -> Generator[Point, None, None]:
+    """Returns points to click."""
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    for point in find_objects(hsv_img, BOMB_RANGE, 190):
-        click(mouse, point, offset)
-    for point in find_objects(hsv_img, POINTS_RANGE, 330):
-        click(mouse, point, offset)
-    # for point in find_objects(hsv_img, ICE_RANGE, 190):
-    #     click(mouse, point, offset)
+    for contour in find_objects(hsv_img, BOMB_RANGE):
+        yield from centers_by_area(contour, 190)
+    for contour in find_objects(hsv_img, POINTS_RANGE):
+        yield from centers_by_area(contour, 330)
 
 
 def main():
@@ -88,7 +90,8 @@ def main():
         while (replay_button:=locate_on_screen(replay_img, 0.9, scn_grabber, region=blum_window)) is None:
             screenshot = scn_grabber.grab(region=play_area_box)
             if screenshot is not None:
-                process_image(screenshot, mouse, offset=(play_area_box[0], play_area_box[1]))
+                for point in process_image(screenshot):
+                    click(mouse, point, offset=(play_area_box[0], play_area_box[1]))
 
         with Events() as e:
             event = e.get(1) # Wait for any mouse press/release/scroll event to exit loop between games
