@@ -1,4 +1,4 @@
 .idea
 .venv
 *.png
-*.lock
+__pycache__
