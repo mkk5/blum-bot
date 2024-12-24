@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import dxcam
 from pynput.mouse import Button, Controller, Events
+from functools import reduce
 import time
 from typing import Generator, Sequence
 
@@ -42,12 +43,11 @@ def click(mouse: Controller, point: Point, offset: Point = (0,0)):
     mouse.release(Button.left)
 
 
-def find_objects(hsv_img: np.ndarray, hsv_range: HSVRange) -> Sequence[np.ndarray]:
-    """Find objects by color using HSV color mask, return contour should be additionally filtered by area."""
-    lower_hsv = np.array(hsv_range[0])
-    upper_hsv = np.array(hsv_range[1])
-    mask = cv2.inRange(hsv_img, lower_hsv, upper_hsv)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+def find_objects(hsv_img: np.ndarray, hsv_ranges: Sequence[HSVRange]) -> Sequence[np.ndarray]:
+    """Find objects by color using combined HSV color mask, return contour should be additionally filtered by area."""
+    masks = (cv2.inRange(hsv_img, np.array(hsv_range[0]), np.array(hsv_range[1])) for hsv_range in hsv_ranges)
+    combined_mask = reduce(cv2.bitwise_or, masks)
+    contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return contours
 
 
@@ -67,7 +67,7 @@ BOMB_RANGE: HSVRange = ((0, 0, 105), (180, 20, 215)) # Gray (bomb), area 190
 def process_image(img: np.ndarray) -> Generator[Point, None, None]:
     """Returns points to click."""
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    for contour in find_objects(hsv_img, POINTS_RANGE):
+    for contour in find_objects(hsv_img, [POINTS_RANGE]):
         yield from centers_by_area(contour, 190)
 
 
