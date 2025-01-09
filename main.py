@@ -59,16 +59,15 @@ def centers_by_area(contour: np.ndarray, min_area: int) -> Generator[Point, None
         y_center = int(m['m01'] / m['m00'])
         yield x_center, y_center
 
-WHITE = ((0, 0, 210), (180, 110, 255))
-PINK_RED = ((143, 80, 80), (180, 255, 255))
-GREEN = ((40, 80, 80), (55, 255, 255))
-BROWN_YELLOW = ((10, 80, 80), (30, 255, 255))
+POINTS_RANGE: HSVRange = ((32, 65, 100), (56, 255, 255)) # Green (star), area 200
+ICE_RANGE: HSVRange = ((45, 0, 215), (105, 165, 255)) # Blue (ice), area 200
+BOMB_RANGE: HSVRange = ((0, 0, 140), (180, 36, 255)) # Gray (bomb), area 150
 
 def process_image(img: np.ndarray) -> Generator[Point, None, None]:
     """Returns points to click."""
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    for contour in find_objects(hsv_img, [WHITE, PINK_RED, GREEN, BROWN_YELLOW]):
-        yield from centers_by_area(contour, 210)
+    for contour in find_objects(hsv_img, [POINTS_RANGE]):
+        yield from centers_by_area(contour, 200)
 
 
 def main():

@@ -1,7 +1,5 @@
 # Blum bot
 
-Added Christmas event support!
-
 Performant clicker for Blum Drop Game using computer vision. Build for fun on top of DXCam (screenshots), OpenCV (object
 detection) and Pynput (mouse controller).
 
