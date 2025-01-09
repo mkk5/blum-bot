@@ -1,3 +1,14 @@
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "dxcam",
+#     "opencv-python",
+#     "pynput",
+# ]
+# [tool.uv]
+# exclude-newer = "2025-01-09T00:00:00Z"
+# ///
+
 import cv2
 import numpy as np
 import dxcam
