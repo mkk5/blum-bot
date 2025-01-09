@@ -43,21 +43,21 @@ def click(mouse: Controller, point: Point, offset: Point = (0,0)):
     mouse.release(Button.left)
 
 
-def find_objects(hsv_img: np.ndarray, hsv_ranges: Sequence[HSVRange]) -> Sequence[np.ndarray]:
-    """Find objects by color using combined HSV color mask, return contour should be additionally filtered by area."""
+def find_objects(hsv_img: np.ndarray, hsv_ranges: Sequence[HSVRange], min_area: int) -> Sequence[np.ndarray]:
+    """Find objects using HSV color masks and filter them."""
     masks = (cv2.inRange(hsv_img, np.array(hsv_range[0]), np.array(hsv_range[1])) for hsv_range in hsv_ranges)
     combined_mask = reduce(cv2.bitwise_or, masks)
     contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    return contours
+    filtered_contours = [c for c in contours if cv2.contourArea(c) > min_area]
+    return filtered_contours
 
 
-def centers_by_area(contour: np.ndarray, min_area: int) -> Generator[Point, None, None]:
-    """Filter contour by min_area and return contour center point."""
+def calc_center(contour: np.ndarray) -> Point:
+    """Return contour center point."""
     m = cv2.moments(contour)
-    if m['m00'] > min_area:
-        x_center = int(m['m10'] / m['m00'])
-        y_center = int(m['m01'] / m['m00'])
-        yield x_center, y_center
+    x_center = int(m['m10'] / m['m00'])
+    y_center = int(m['m01'] / m['m00'])
+    return x_center, y_center
 
 POINTS_RANGE: HSVRange = ((32, 65, 100), (56, 255, 255)) # Green (star), area 200
 ICE_RANGE: HSVRange = ((45, 0, 215), (105, 165, 255)) # Blue (ice), area 200
@@ -66,8 +66,8 @@ BOMB_RANGE: HSVRange = ((0, 0, 140), (180, 36, 255)) # Gray (bomb), area 150
 def process_image(img: np.ndarray) -> Generator[Point, None, None]:
     """Returns points to click."""
     hsv_img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    for contour in find_objects(hsv_img, [POINTS_RANGE]):
-        yield from centers_by_area(contour, 200)
+    for contour in find_objects(hsv_img, [POINTS_RANGE], min_area=200):
+        yield calc_center(contour)
 
 
 def main():
